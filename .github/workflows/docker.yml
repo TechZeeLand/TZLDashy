@@ -1,0 +1,82 @@
+###############################################################
+#  TZLDashy — Build & Push to GitHub Container Registry
+#
+#  Triggers on every push to `main`.
+#  Builds the combined PHP+Nginx image and pushes it to:
+#    ghcr.io/YOUR-GITHUB-USERNAME/tzldashy:latest
+#
+#  After this runs, anyone can pull the image and the
+#  zero-config docker-compose.yml will work instantly.
+###############################################################
+
+name: Build & Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # This automatically becomes:  ghcr.io/your-username/tzldashy
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build image and push to GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # needed to push to ghcr.io
+
+    steps:
+
+      # ── 1. Get the code ─────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Enable multi-platform builds ─────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── 3. Login to GHCR ────────────────────────────────────
+      # Uses the automatic GITHUB_TOKEN — no extra secrets needed
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 4. Generate image tags ──────────────────────────────
+      # Tags produced:
+      #   latest        (always, on main branch)
+      #   sha-abc1234   (unique per commit — for rollbacks)
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      # ── 5. Build and push ───────────────────────────────────
+      # GitHub Actions cache makes repeat builds very fast
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/php/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 6. Print image digest for reference ─────────────────
+      - name: Print image digest
+        run: echo "Image pushed → ${{ steps.meta.outputs.tags }}"

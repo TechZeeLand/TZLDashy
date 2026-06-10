@@ -1,0 +1,150 @@
+###############################################################
+#  TZLDashy — Complete Stack  (zero-config edition)
+#
+#  USAGE — Copy this entire file and paste into:
+#    • Portainer  → Stacks → Add Stack → Web editor → Deploy
+#    • Docker     → Save as docker-compose.yml → docker compose up -d
+#
+#  No files to create.  No directories to make.
+#  No .env file needed.  Everything is defined right here.
+#
+#  ┌────────────────────────────────────────────────────────┐
+#  │  Service      Port   URL                               │
+#  │  ─────────────────────────────────────────────────── │
+#  │  TZLDashy     1011   http://YOUR-SERVER-IP:1011        │
+#  │  phpMyAdmin   8094   http://YOUR-SERVER-IP:8094        │
+#  │  Tdyl (term.) 2222   http://YOUR-SERVER-IP:2222        │
+#  └────────────────────────────────────────────────────────┘
+#
+#  ⚠  Change DB passwords and APP_KEY before going public.
+#  ⚠  SMTP is pre-configured — do not alter the SMTP block.
+###############################################################
+
+services:
+
+# ─────────────────────────────────────────────────────────────
+#  APP  —  PHP 8.2 + Nginx  (single container, port 1011)
+#  nginx is baked into this image — no separate nginx service.
+# ─────────────────────────────────────────────────────────────
+  app:
+    image: ghcr.io/techzeeland/tzldashy:latest
+    container_name: tzldashy_app
+    restart: unless-stopped
+    ports:
+      - "1011:1011"
+    environment:
+      # ── Application ──────────────────────────────────────
+      APP_NAME: TZLDashy
+      APP_ENV: production
+      APP_KEY: "tzldashy-app-key-change-me-before-going-live"
+      APP_URL: "http://localhost:1011"
+      SESSION_NAME: tzldashy_session
+      SESSION_LIFETIME: "86400"
+
+      # ── Database ─────────────────────────────────────────
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: tzldashy
+      DB_USER: tzldashy
+      DB_PASS: "TZLDashy_DB@2025"
+
+      # ── SMTP (Zoho — pre-configured, do not change) ──────
+      # All verification and notification emails are sent
+      # through the official TZLDashy mail account.
+      # You do NOT need your own SMTP setup.
+      SMTP_HOST: smtp.zoho.com
+      SMTP_PORT: "465"
+      SMTP_ENCRYPTION: ssl
+      SMTP_USER: mail@rayaz.org
+      SMTP_PASS: "RAYilyvm2005@"
+      SMTP_FROM: mail@rayaz.org
+      SMTP_FROM_NAME: TZLDashy
+
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tzldashy_net
+    volumes:
+      # Persistent user content — survives image updates
+      - tzldashy_logos:/app/public/Logos
+      - tzldashy_uploads:/app/public/uploads
+      - tzldashy_sessions:/tmp/php_sessions
+
+# ─────────────────────────────────────────────────────────────
+#  DATABASE  —  MariaDB 10.11
+#  Schema is imported automatically by the app on first boot.
+#  You never need to touch this service directly.
+# ─────────────────────────────────────────────────────────────
+  db:
+    image: mariadb:10.11
+    container_name: tzldashy_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE:      tzldashy
+      MYSQL_USER:          tzldashy
+      MYSQL_PASSWORD:      "TZLDashy_DB@2025"
+      MYSQL_ROOT_PASSWORD: "TZLDashy_ROOT@2025"
+    volumes:
+      - tzldashy_db:/var/lib/mysql
+    networks:
+      - tzldashy_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+
+# ─────────────────────────────────────────────────────────────
+#  PHPMYADMIN  —  DB admin panel (port 8094)
+# ─────────────────────────────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: tzldashy_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8094:80"
+    environment:
+      PMA_HOST:            db
+      PMA_PORT:            "3306"
+      MYSQL_ROOT_PASSWORD: "TZLDashy_ROOT@2025"
+      UPLOAD_LIMIT:        100M
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tzldashy_net
+
+# ─────────────────────────────────────────────────────────────
+#  TDYL  —  Browser-based terminal (port 2222)
+#  Open http://YOUR-SERVER-IP:2222 for a web terminal.
+#  Default login → username: admin  password: TZLDashy2025
+#  Change the -c flag below to set your own credentials.
+# ─────────────────────────────────────────────────────────────
+  tdyl:
+    image: tsl0922/ttyd:latest
+    container_name: tzldashy_tdyl
+    restart: unless-stopped
+    ports:
+      - "2222:2222"
+    command: ttyd --port 2222 --credential admin:TZLDashy2025 bash
+    networks:
+      - tzldashy_net
+
+# ─────────────────────────────────────────────────────────────
+#  NETWORKS
+# ─────────────────────────────────────────────────────────────
+networks:
+  tzldashy_net:
+    driver: bridge
+
+# ─────────────────────────────────────────────────────────────
+#  VOLUMES  —  all data is stored in named Docker volumes.
+#  Nothing is written to the host filesystem.
+# ─────────────────────────────────────────────────────────────
+volumes:
+  tzldashy_db:       # MariaDB data
+  tzldashy_logos:    # User-uploaded logos
+  tzldashy_uploads:  # Other uploaded files
+  tzldashy_sessions: # PHP session files

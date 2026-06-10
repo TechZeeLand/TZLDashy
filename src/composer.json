@@ -1,0 +1,19 @@
+{
+  "name": "techzeeland/tzldashy",
+  "description": "TZLDashy – A self-hosted server dashboard",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1",
+    "phpmailer/phpmailer": "^6.9"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  }
+}

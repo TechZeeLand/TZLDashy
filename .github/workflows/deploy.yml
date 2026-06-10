@@ -1,0 +1,67 @@
+###############################################################
+#  TZLDashy — Auto-Deploy to Server
+#
+#  Runs AFTER the "Build & Push Docker Image" workflow
+#  completes successfully on main.
+#
+#  What it does:
+#    1. SSHs into your server
+#    2. Pulls the new image
+#    3. Restarts only the app container (zero-downtime)
+#    4. Prunes old images to save disk space
+#
+#  Required GitHub Secrets (Settings → Secrets → Actions):
+#    SERVER_HOST     — your server's IP or domain
+#    SERVER_USER     — SSH username  (e.g. root)
+#    SERVER_SSH_KEY  — private SSH key content (see guide)
+#    SERVER_PATH     — folder on server where compose file lives
+#                      (e.g. /opt/tzldashy)
+###############################################################
+
+name: Deploy to Server
+
+on:
+  workflow_run:
+    workflows: ["Build & Push Docker Image"]
+    types:
+      - completed
+    branches:
+      - main
+  # Also allow manual deploy trigger
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: SSH deploy to server
+    runs-on: ubuntu-latest
+    # Only deploy if the build actually succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+
+      # ── Deploy via SSH ──────────────────────────────────────
+      - name: SSH into server and update app
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key:      ${{ secrets.SERVER_SSH_KEY }}
+          port:     22
+          script: |
+            set -e
+            echo "━━━ TZLDashy Auto-Deploy ━━━"
+
+            # Go to the compose directory
+            cd ${{ secrets.SERVER_PATH }}
+
+            # Pull only the app image (db/phpmyadmin/tdyl unchanged)
+            docker compose pull app
+
+            # Recreate only the app container (db stays up — no downtime)
+            docker compose up -d --no-deps app
+
+            # Clean up old images to save disk space
+            docker image prune -f
+
+            echo "━━━ Deploy complete ━━━"
+            docker compose ps
