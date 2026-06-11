@@ -1,93 +1,85 @@
 ###############################################################
-#  TZLDashy — Combined App Image
-#  PHP 8.2-FPM + Nginx 1.x — both run in this single container
-#  managed by supervisord.
-#  Image: ghcr.io/techzeeland/tzldashy:latest
+#  TZLDashy — Single-container image
+#  PHP 8.2 FPM + Nginx, served from port 1011
+#  Process supervisor: supervisord
 ###############################################################
 
 FROM php:8.2-fpm-alpine
 
-# ── System packages ────────────────────────────────────────────
-# nginx        — web server (baked in, no separate container)
-# supervisor   — process manager for nginx + php-fpm
-# mysql-client — used by entrypoint.sh for DB health checks
+# ── System packages ──────────────────────────────────────────
 RUN apk add --no-cache \
-        bash curl \
-        freetype-dev libjpeg-turbo-dev libpng-dev libwebp-dev \
-        libzip-dev oniguruma-dev \
-        zip unzip sudo \
-        nginx supervisor mysql-client
+      nginx \
+      supervisor \
+      sudo \
+      curl \
+      freetype-dev \
+      libjpeg-turbo-dev \
+      libpng-dev \
+      libwebp-dev \
+      libxml2-dev \
+      mariadb-client \
+      tzdata \
+    && docker-php-ext-configure gd \
+         --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j"$(nproc)" \
+         gd pdo pdo_mysql opcache
 
-# ── PHP extensions ─────────────────────────────────────────────
-RUN docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
-        --with-webp \
- && docker-php-ext-install -j"$(nproc)" \
-        pdo_mysql mbstring gd zip opcache
-
-# ── Composer ───────────────────────────────────────────────────
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# ── PHP.ini production tweaks ──────────────────────────────────
+# ── PHP configuration ─────────────────────────────────────────
 RUN { \
-        echo "upload_max_filesize = 50M"; \
-        echo "post_max_size = 55M"; \
-        echo "memory_limit = 256M"; \
-        echo "max_execution_time = 60"; \
-        echo "opcache.enable=1"; \
-        echo "opcache.memory_consumption=128"; \
-        echo "opcache.validate_timestamps=0"; \
-    } >> /usr/local/etc/php/conf.d/tzldashy.ini
+      echo "opcache.enable=1"; \
+      echo "opcache.enable_cli=0"; \
+      echo "opcache.memory_consumption=128"; \
+      echo "opcache.max_accelerated_files=8000"; \
+      echo "opcache.validate_timestamps=1"; \
+      echo "opcache.revalidate_freq=2"; \
+      echo "upload_max_filesize=32M"; \
+      echo "post_max_size=34M"; \
+      echo "memory_limit=256M"; \
+      echo "max_execution_time=60"; \
+    } > /usr/local/etc/php/conf.d/tzldashy.ini
 
-# ── Sudoers (allow www-data to run shutdown/reboot) ────────────
-RUN echo "www-data ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot" \
-        >> /etc/sudoers.d/www-data \
- && chmod 0440 /etc/sudoers.d/www-data
+# ── PHP-FPM pool ──────────────────────────────────────────────
+RUN { \
+      echo "[www]"; \
+      echo "user = www-data"; \
+      echo "group = www-data"; \
+      echo "listen = 127.0.0.1:9000"; \
+      echo "pm = dynamic"; \
+      echo "pm.max_children = 20"; \
+      echo "pm.start_servers = 4"; \
+      echo "pm.min_spare_servers = 2"; \
+      echo "pm.max_spare_servers = 8"; \
+    } > /usr/local/etc/php-fpm.d/www.conf
 
-# ── App source ─────────────────────────────────────────────────
+# ── Sudo: allow www-data to reboot / shutdown ─────────────────
+RUN echo "www-data ALL=(ALL) NOPASSWD: /sbin/reboot,/sbin/poweroff,/sbin/shutdown,/bin/systemctl" \
+      >> /etc/sudoers.d/www-data \
+    && chmod 0440 /etc/sudoers.d/www-data
+
+# ── Application source ────────────────────────────────────────
 WORKDIR /app
-
-# Install Composer deps (separate layer — cached unless composer.json changes)
-COPY src/composer.json src/composer.lock* ./
-RUN composer install \
-        --no-dev \
-        --optimize-autoloader \
-        --no-interaction \
-        2>/dev/null \
-    || composer install --no-dev --no-interaction
-
-# Copy full application source
 COPY src/ ./
 
-# ── Nginx configuration ────────────────────────────────────────
-# Remove Alpine default vhost; install ours
-RUN rm -f /etc/nginx/http.d/default.conf \
- && mkdir -p /etc/nginx/http.d
+# ── Directory permissions ─────────────────────────────────────
+RUN mkdir -p \
+      /app/public/uploads/avatars \
+      /app/public/Logos \
+      /tmp/php_sessions \
+    && chown -R www-data:www-data /app /tmp/php_sessions \
+    && chmod -R 755 /app/public
+
+# ── Nginx config ──────────────────────────────────────────────
 COPY docker/nginx/tzldashy.conf /etc/nginx/http.d/default.conf
+RUN rm -f /etc/nginx/http.d/default.conf.bak 2>/dev/null; true
 
-# Ensure nginx pid directory exists and is writable
-RUN mkdir -p /run/nginx
+# ── Supervisord config ────────────────────────────────────────
+COPY docker/supervisord.conf /etc/supervisor/conf.d/tzldashy.conf
 
-# ── Supervisor configuration ───────────────────────────────────
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-RUN mkdir -p /var/log/supervisor
-
-# ── Schema — embedded for zero-config first-boot init ─────────
-RUN mkdir -p /tzldashy-init
-COPY database/schema.sql /tzldashy-init/schema.sql
-
-# ── Entrypoint ─────────────────────────────────────────────────
+# ── Entrypoint (schema auto-import on first boot) ─────────────
 COPY docker/entrypoint.sh /entrypoint.sh
+COPY database/schema.sql  /schema.sql
 RUN chmod +x /entrypoint.sh
 
-# ── Permissions ────────────────────────────────────────────────
-RUN mkdir -p public/uploads/avatars public/Logos \
- && chown -R www-data:www-data /app \
- && chmod -R 755 public/uploads public/Logos
-
-# ── Expose ─────────────────────────────────────────────────────
 EXPOSE 1011
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

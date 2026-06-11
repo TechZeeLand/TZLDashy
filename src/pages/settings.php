@@ -14,41 +14,36 @@ $error    = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    // ── Save appearance ─────────────────────────────
     if ($action === 'save_appearance') {
-        setSetting('theme',           $_POST['theme']         ?? 'dark', $user['id']);
-        setSetting('accent_color',    $_POST['accent_color']  ?? '#00ffbf', $user['id']);
-        setSetting('font',            $_POST['font']          ?? 'Alata', $user['id']);
-        setSetting('primary_color',   $_POST['primary_color'] ?? '', $user['id']);
-        setSetting('secondary_color', $_POST['secondary_color'] ?? '', $user['id']);
-        $success = 'Appearance saved.';
-        $uSettings = getUserSettings((int)$user['id']);
+        setSetting('theme',           $_POST['theme']          ?? 'dark',     (int)$user['id']);
+        setSetting('accent_color',    $_POST['accent_color']   ?? '#00ffbf',  (int)$user['id']);
+        setSetting('font',            $_POST['font']           ?? 'Alata',    (int)$user['id']);
+        setSetting('primary_color',   $_POST['primary_color']  ?? '',         (int)$user['id']);
+        setSetting('secondary_color', $_POST['secondary_color'] ?? '',        (int)$user['id']);
     }
 
-    // ── Save general ────────────────────────────────
     if ($action === 'save_general' && $isAdmin) {
-        setSetting('app_name',      trim($_POST['app_name'] ?? 'TZLDashy'));
-        setSetting('weather_city',  trim($_POST['weather_city'] ?? 'Dhaka'));
-        setSetting('terminal_url',  trim($_POST['terminal_url'] ?? ''));
-        $success = 'General settings saved.';
+        setSetting('app_name',     trim($_POST['app_name']     ?? 'TZLDashy'));
+        setSetting('weather_city', trim($_POST['weather_city'] ?? 'Dhaka'));
+        setSetting('terminal_url', trim($_POST['terminal_url'] ?? ''));
     }
 
-    // ── Save language/font ──────────────────────────
     if ($action === 'save_language') {
-        setSetting('language', $_POST['language'] ?? 'en', $user['id']);
-        $success = 'Language saved.';
+        setSetting('language', $_POST['language'] ?? 'en', (int)$user['id']);
+        setSetting('font',     $_POST['font']     ?? 'Alata', (int)$user['id']);
     }
 
     redirect('/pages/settings.php?section=' . ($_POST['section'] ?? 'appearance') . '&saved=1');
 }
 
-$section   = $_GET['section'] ?? 'appearance';
-if ($_GET['saved'] ?? false) $success = 'Settings saved successfully.';
+$section = $_GET['section'] ?? 'appearance';
+if (!empty($_GET['saved'])) $success = 'Settings saved successfully.';
+if (!empty($_GET['error'])) $error   = htmlspecialchars_decode($_GET['error']);
 
 $globalSettings = [
-    'app_name'      => getSetting('app_name', null, 'TZLDashy'),
-    'weather_city'  => getSetting('weather_city', null, 'Dhaka'),
-    'terminal_url'  => getSetting('terminal_url', null, 'http://localhost:7681'),
+    'app_name'     => getSetting('app_name',    null, 'TZLDashy'),
+    'weather_city' => getSetting('weather_city', null, 'Dhaka'),
+    'terminal_url' => getSetting('terminal_url', null, 'http://localhost:2222'),
 ];
 
 $pageTitle = 'Settings';
@@ -61,35 +56,35 @@ require_once __DIR__ . '/../partials/header.php';
   <!-- SIDEBAR NAV -->
   <nav class="settings-sidebar">
     <button class="settings-nav-item <?= $section==='appearance'?'active':'' ?>" onclick="switchSection('appearance',this)">
-      <span class="nav-icon">🎨</span> Appearance
+      <span class="nav-icon"><i class="fa-solid fa-palette"></i></span> Appearance
     </button>
     <button class="settings-nav-item <?= $section==='language'?'active':'' ?>" onclick="switchSection('language',this)">
-      <span class="nav-icon">🌐</span> Language & Font
+      <span class="nav-icon"><i class="fa-solid fa-font"></i></span> Language &amp; Font
     </button>
     <?php if ($isAdmin): ?>
     <button class="settings-nav-item <?= $section==='general'?'active':'' ?>" onclick="switchSection('general',this)">
-      <span class="nav-icon">⚙️</span> General
+      <span class="nav-icon"><i class="fa-solid fa-sliders"></i></span> General
     </button>
     <button class="settings-nav-item <?= $section==='users'?'active':'' ?>" onclick="switchSection('users',this)">
-      <span class="nav-icon">👥</span> User Management
+      <span class="nav-icon"><i class="fa-solid fa-users"></i></span> Users
     </button>
     <?php endif; ?>
     <hr style="border:none;border-top:1px solid var(--border);margin:8px 4px;">
     <a class="settings-nav-item" href="/pages/profile.php">
-      <span class="nav-icon">👤</span> Profile
+      <span class="nav-icon"><i class="fa-solid fa-user"></i></span> Profile
     </a>
     <a class="settings-nav-item" href="/pages/about.php">
-      <span class="nav-icon">ℹ️</span> About
+      <span class="nav-icon"><i class="fa-solid fa-circle-info"></i></span> About
     </a>
   </nav>
 
   <!-- PANEL -->
   <div class="settings-panel">
     <?php if ($success): ?>
-    <div class="alert alert-success">✅ <?= e($success) ?></div>
+    <div class="alert alert-success"><i class="fa-solid fa-circle-check"></i> <?= e($success) ?></div>
     <?php endif; ?>
     <?php if ($error): ?>
-    <div class="alert alert-error">⚠️ <?= e($error) ?></div>
+    <div class="alert alert-error"><i class="fa-solid fa-triangle-exclamation"></i> <?= e($error) ?></div>
     <?php endif; ?>
 
     <!-- ── APPEARANCE ── -->
@@ -99,12 +94,16 @@ require_once __DIR__ . '/../partials/header.php';
         <input type="hidden" name="section" value="appearance">
 
         <div class="settings-card">
-          <div class="settings-card-title">🎨 Theme</div>
+          <div class="settings-card-title"><i class="fa-solid fa-moon"></i> Theme</div>
           <div class="form-group">
             <label class="form-label">Mode</label>
             <select class="form-select" name="theme" onchange="previewTheme(this.value)">
-              <option value="dark"  <?= ($uSettings['theme']??'dark')==='dark'?'selected':'' ?>>🌙 Dark</option>
-              <option value="light" <?= ($uSettings['theme']??'dark')==='light'?'selected':'' ?>>☀️ Light</option>
+              <option value="dark"  <?= ($uSettings['theme']??'dark')==='dark'?'selected':'' ?>>
+                Dark Mode
+              </option>
+              <option value="light" <?= ($uSettings['theme']??'dark')==='light'?'selected':'' ?>>
+                Light Mode
+              </option>
             </select>
           </div>
 
@@ -128,7 +127,7 @@ require_once __DIR__ . '/../partials/header.php';
         </div>
 
         <div class="settings-card">
-          <div class="settings-card-title">🎨 Custom Colours</div>
+          <div class="settings-card-title"><i class="fa-solid fa-palette"></i> Custom Colours</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Primary Override</label>
@@ -141,7 +140,7 @@ require_once __DIR__ . '/../partials/header.php';
                      value="<?= e($uSettings['secondary_color']??'#1a1a1a') ?>" style="height:44px;padding:4px 8px;cursor:pointer;">
             </div>
           </div>
-          <div class="form-hint">These override the accent. Leave as-is to use the accent colour.</div>
+          <div class="form-hint">Leave primary as the accent colour to use your chosen accent.</div>
         </div>
 
         <button type="submit" class="btn btn-primary">Save Appearance</button>
@@ -155,33 +154,31 @@ require_once __DIR__ . '/../partials/header.php';
         <input type="hidden" name="section" value="language">
 
         <div class="settings-card">
-          <div class="settings-card-title">🌐 Language</div>
+          <div class="settings-card-title"><i class="fa-solid fa-globe"></i> Language</div>
           <div class="form-group">
             <label class="form-label">Interface Language</label>
             <select class="form-select" name="language">
               <?php
-              $langs = ['en'=>'English','bn'=>'Bengali (বাংলা)','fr'=>'French (Français)',
-                        'de'=>'German (Deutsch)','es'=>'Spanish (Español)','ar'=>'Arabic (عربي)','zh'=>'Chinese (中文)'];
+              $langs = ['en'=>'English','bn'=>'Bengali','fr'=>'French','de'=>'German',
+                        'es'=>'Spanish','ar'=>'Arabic','zh'=>'Chinese'];
               $curLang = $uSettings['language'] ?? 'en';
-              foreach ($langs as $code => $label):
-              ?>
+              foreach ($langs as $code => $label): ?>
               <option value="<?= $code ?>" <?= $code===$curLang?'selected':'' ?>><?= $label ?></option>
               <?php endforeach; ?>
             </select>
-            <div class="form-hint">UI language support is expanding. Most labels are currently in English.</div>
+            <div class="form-hint">Most labels are currently in English. More translations coming soon.</div>
           </div>
         </div>
 
         <div class="settings-card">
-          <div class="settings-card-title">🔤 Font</div>
+          <div class="settings-card-title"><i class="fa-solid fa-font"></i> Font</div>
           <div class="form-group">
             <label class="form-label">Font Family</label>
             <select class="form-select" name="font" id="fontSelect" onchange="previewFont(this.value)">
               <?php
               $fonts = ['Alata','Inter','Roboto','Poppins','Ubuntu','Montserrat','Nunito','Source Code Pro','JetBrains Mono'];
               $curFont = $uSettings['font'] ?? 'Alata';
-              foreach ($fonts as $f):
-              ?>
+              foreach ($fonts as $f): ?>
               <option value="<?= $f ?>" <?= $f===$curFont?'selected':'' ?>><?= $f ?></option>
               <?php endforeach; ?>
             </select>
@@ -191,7 +188,7 @@ require_once __DIR__ . '/../partials/header.php';
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Save Language & Font</button>
+        <button type="submit" class="btn btn-primary">Save Language &amp; Font</button>
       </form>
     </div>
 
@@ -202,19 +199,21 @@ require_once __DIR__ . '/../partials/header.php';
         <input type="hidden" name="action" value="save_general">
         <input type="hidden" name="section" value="general">
         <div class="settings-card">
-          <div class="settings-card-title">⚙️ General Settings</div>
+          <div class="settings-card-title"><i class="fa-solid fa-sliders"></i> General Settings</div>
           <div class="form-group">
             <label class="form-label">App Name</label>
             <input class="form-input" type="text" name="app_name" value="<?= e($globalSettings['app_name']) ?>">
           </div>
           <div class="form-group">
             <label class="form-label">Weather City</label>
-            <input class="form-input" type="text" name="weather_city" value="<?= e($globalSettings['weather_city']) ?>" placeholder="Dhaka">
+            <input class="form-input" type="text" name="weather_city"
+                   value="<?= e($globalSettings['weather_city']) ?>" placeholder="Dhaka">
           </div>
           <div class="form-group">
-            <label class="form-label">Terminal URL (ttyd/wetty)</label>
-            <input class="form-input" type="url" name="terminal_url" value="<?= e($globalSettings['terminal_url']) ?>" placeholder="http://localhost:7681">
-            <div class="form-hint">URL to your terminal-in-browser service (ttyd recommended).</div>
+            <label class="form-label">Terminal URL (ttyd)</label>
+            <input class="form-input" type="url" name="terminal_url"
+                   value="<?= e($globalSettings['terminal_url']) ?>" placeholder="http://localhost:2222">
+            <div class="form-hint">URL to your ttyd browser-terminal service.</div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary">Save General Settings</button>
@@ -225,17 +224,17 @@ require_once __DIR__ . '/../partials/header.php';
     <div class="settings-section <?= $section==='users'?'active':'' ?>" id="sec-users">
       <div class="settings-card">
         <div class="settings-card-title" style="justify-content:space-between;">
-          <span>👥 Users</span>
-          <button class="btn btn-sm btn-primary" onclick="openModal('addUserModal')">+ Add User</button>
+          <span><i class="fa-solid fa-users"></i> Users</span>
+          <button class="btn btn-sm btn-primary" onclick="openModal('addUserModal')">
+            <i class="fa-solid fa-plus"></i> Add User
+          </button>
         </div>
         <?php
         $allUsers = Database::fetchAll("SELECT id,name,email,role,created_at FROM users ORDER BY role DESC,name");
         ?>
         <table class="data-table">
           <thead>
-            <tr>
-              <th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th>
-            </tr>
+            <tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
           </thead>
           <tbody>
           <?php foreach ($allUsers as $u): ?>
@@ -248,7 +247,8 @@ require_once __DIR__ . '/../partials/header.php';
               <?php if ($u['id'] != $user['id']): ?>
               <button class="btn btn-sm" onclick='openEditUser(<?= json_encode($u) ?>)'>Edit</button>
               <?php if ($u['role'] !== 'admin'): ?>
-              <button class="btn btn-sm btn-danger" style="margin-left:6px" onclick="deleteUser(<?= $u['id'] ?>)">Delete</button>
+              <button class="btn btn-sm btn-danger" style="margin-left:6px"
+                      onclick="deleteUser(<?= $u['id'] ?>)">Delete</button>
               <?php endif; ?>
               <?php else: ?>
               <span style="color:var(--muted);font-size:12px">You</span>
@@ -270,7 +270,7 @@ require_once __DIR__ . '/../partials/header.php';
 <div class="modal" id="addUserModal">
   <div class="modal-box" style="max-width:460px">
     <button class="modal-close" onclick="closeModal('addUserModal')">&times;</button>
-    <h2 class="modal-title">➕ Add User</h2>
+    <h2 class="modal-title"><i class="fa-solid fa-user-plus"></i> Add User</h2>
     <form method="POST" action="/api/users.php">
       <input type="hidden" name="action" value="add_user">
       <div class="form-group"><label class="form-label">Name</label>
@@ -295,7 +295,7 @@ require_once __DIR__ . '/../partials/header.php';
 <div class="modal" id="editUserModal">
   <div class="modal-box" style="max-width:460px">
     <button class="modal-close" onclick="closeModal('editUserModal')">&times;</button>
-    <h2 class="modal-title">✏️ Edit User</h2>
+    <h2 class="modal-title"><i class="fa-solid fa-user-pen"></i> Edit User</h2>
     <form method="POST" action="/api/users.php">
       <input type="hidden" name="action" value="edit_user">
       <input type="hidden" name="id" id="editUserId">
@@ -329,6 +329,7 @@ function switchSection(id, btn) {
   document.querySelectorAll('.settings-nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('sec-' + id)?.classList.add('active');
   btn.classList.add('active');
+  history.replaceState(null,'',location.pathname+'?section='+id);
 }
 
 function selectAccent(color) {
@@ -336,6 +337,8 @@ function selectAccent(color) {
   document.querySelectorAll('.color-swatch').forEach(s => {
     s.classList.toggle('selected', s.style.background === color);
   });
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--accent-color', color);
 }
 
 function previewTheme(val) {
@@ -345,13 +348,10 @@ function previewTheme(val) {
 
 function previewFont(fontName) {
   const prev = document.getElementById('fontPreview');
-  if (!fontName || fontName === 'Alata') {
-    prev.style.fontFamily = 'Alata, sans-serif';
-    return;
-  }
+  if (!fontName || fontName === 'Alata') { prev.style.fontFamily = 'Alata, sans-serif'; return; }
   if (!document.querySelector(`link[data-font="${fontName}"]`)) {
     const link = document.createElement('link');
-    link.rel  = 'stylesheet';
+    link.rel = 'stylesheet';
     link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700&display=swap`;
     link.dataset.font = fontName;
     document.head.appendChild(link);

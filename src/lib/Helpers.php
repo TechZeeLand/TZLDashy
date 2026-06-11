@@ -20,18 +20,34 @@ function jsonResponse(mixed $data, int $code = 200): never {
 function getSetting(string $key, ?int $userId = null, mixed $default = null): mixed {
     $row = Database::fetchOne(
         "SELECT setting_value FROM settings WHERE user_id " .
-        ($userId ? "= ?" : "IS NULL") . " AND setting_key = ?",
-        $userId ? [$userId, $key] : [$key]
+        ($userId !== null ? "= ?" : "IS NULL") . " AND setting_key = ?",
+        $userId !== null ? [$userId, $key] : [$key]
     );
     return $row ? $row['setting_value'] : $default;
 }
 
 function setSetting(string $key, mixed $value, ?int $userId = null): void {
-    Database::query(
-        "INSERT INTO settings (user_id, setting_key, setting_value) VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
-        [$userId, $key, $value]
-    );
+    if ($userId === null) {
+        // Global settings: NULL unique key workaround —
+        // MySQL treats NULL != NULL in unique indexes, so ON DUPLICATE KEY won't fire.
+        // Use UPDATE first; INSERT only if no rows were changed.
+        $affected = Database::query(
+            "UPDATE settings SET setting_value = ? WHERE user_id IS NULL AND setting_key = ?",
+            [$value, $key]
+        )->rowCount();
+        if ($affected === 0) {
+            Database::query(
+                "INSERT IGNORE INTO settings (user_id, setting_key, setting_value) VALUES (NULL, ?, ?)",
+                [$key, $value]
+            );
+        }
+    } else {
+        Database::query(
+            "INSERT INTO settings (user_id, setting_key, setting_value) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+            [$userId, $key, $value]
+        );
+    }
 }
 
 function getUserSettings(int $userId): array {
@@ -62,19 +78,14 @@ function uploadFile(array $file, string $dir, array $allowed = ['image/jpeg','im
     return $name;
 }
 
-function sendEmail(string $to, string $toName, string $subject, string $htmlBody, string $textBody = ''): bool {
-    require_once ROOT_DIR . '/mail/Mailer.php';
-    return Mailer::send($to, $toName, $subject, $htmlBody, $textBody);
-}
-
 function getThemeVars(?int $userId = null): array {
     $uid = $userId ?? Auth::id();
     $settings = $uid ? getUserSettings($uid) : [];
     return [
-        'theme'       => $settings['theme'] ?? getSetting('theme', null, 'dark'),
-        'accent'      => $settings['accent_color'] ?? getSetting('accent_color', null, '#00ffbf'),
-        'font'        => $settings['font'] ?? getSetting('font', null, 'Alata'),
-        'primary'     => $settings['primary_color'] ?? '',
-        'secondary'   => $settings['secondary_color'] ?? '',
+        'theme'     => $settings['theme']       ?? getSetting('theme',       null, 'dark'),
+        'accent'    => $settings['accent_color'] ?? getSetting('accent_color',null, '#00ffbf'),
+        'font'      => $settings['font']         ?? getSetting('font',        null, 'Alata'),
+        'primary'   => $settings['primary_color']   ?? '',
+        'secondary' => $settings['secondary_color']  ?? '',
     ];
 }

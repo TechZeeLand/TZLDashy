@@ -1,5 +1,6 @@
 -- TZLDashy Database Schema
 -- Owner: rayaz.org | Creator: TechZeeLand
+-- License: AGPL v3
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -9,7 +10,6 @@ DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS apps;
 DROP TABLE IF EXISTS settings;
 DROP TABLE IF EXISTS contact_messages;
-DROP TABLE IF EXISTS two_factor_codes;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -25,7 +25,6 @@ CREATE TABLE users (
   avatar       VARCHAR(255) DEFAULT NULL,
   totp_secret  VARCHAR(64) DEFAULT NULL,
   totp_enabled TINYINT(1) DEFAULT 0,
-  email_2fa    TINYINT(1) DEFAULT 0,
   created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -72,8 +71,8 @@ CREATE TABLE apps (
 -- SETTINGS (key-value store per user or global)
 -- =====================
 CREATE TABLE settings (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  user_id    INT DEFAULT NULL COMMENT 'NULL = global',
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  user_id       INT DEFAULT NULL COMMENT 'NULL = global',
   setting_key   VARCHAR(100) NOT NULL,
   setting_value TEXT,
   UNIQUE KEY unique_setting (user_id, setting_key),
@@ -94,25 +93,14 @@ CREATE TABLE contact_messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- =====================
--- TWO FACTOR CODES (email OTP)
--- =====================
-CREATE TABLE two_factor_codes (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  user_id    INT NOT NULL,
-  code       VARCHAR(10) NOT NULL,
-  expires_at DATETIME NOT NULL,
-  used       TINYINT(1) DEFAULT 0,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- =====================
 -- DEFAULT GLOBAL SETTINGS
 -- =====================
 INSERT INTO settings (user_id, setting_key, setting_value) VALUES
-  (NULL, 'app_name', 'TZLDashy'),
-  (NULL, 'theme', 'dark'),
+  (NULL, 'app_name',     'TZLDashy'),
+  (NULL, 'theme',        'dark'),
   (NULL, 'accent_color', '#00ffbf'),
-  (NULL, 'font', 'Alata'),
-  (NULL, 'language', 'en'),
-  (NULL, 'setup_done', '0'),
-  (NULL, 'weather_city', 'Dhaka');
+  (NULL, 'font',         'Alata'),
+  (NULL, 'language',     'en'),
+  (NULL, 'setup_done',   '0'),
+  (NULL, 'weather_city', 'Dhaka'),
+  (NULL, 'terminal_url', 'http://localhost:2222');

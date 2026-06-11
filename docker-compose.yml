@@ -12,12 +12,10 @@
 #  │  Service      Port   URL                               │
 #  │  ─────────────────────────────────────────────────── │
 #  │  TZLDashy     1011   http://YOUR-SERVER-IP:1011        │
-#  │  phpMyAdmin   8094   http://YOUR-SERVER-IP:8094        │
 #  │  Tdyl (term.) 2222   http://YOUR-SERVER-IP:2222        │
 #  └────────────────────────────────────────────────────────┘
 #
 #  ⚠  Change DB passwords and APP_KEY before going public.
-#  ⚠  SMTP is pre-configured — do not alter the SMTP block.
 ###############################################################
 
 services:
@@ -32,6 +30,8 @@ services:
     restart: unless-stopped
     ports:
       - "1011:1011"
+    cap_add:
+      - SYS_BOOT       # allows reboot/shutdown buttons to work
     environment:
       # ── Application ──────────────────────────────────────
       APP_NAME: TZLDashy
@@ -47,18 +47,6 @@ services:
       DB_NAME: tzldashy
       DB_USER: tzldashy
       DB_PASS: "TZLDashy_DB@2025"
-
-      # ── SMTP (Zoho — pre-configured, do not change) ──────
-      # All verification and notification emails are sent
-      # through the official TZLDashy mail account.
-      # You do NOT need your own SMTP setup.
-      SMTP_HOST: smtp.zoho.com
-      SMTP_PORT: "465"
-      SMTP_ENCRYPTION: ssl
-      SMTP_USER: mail@rayaz.org
-      SMTP_PASS: "RAYilyvm2005@"
-      SMTP_FROM: mail@rayaz.org
-      SMTP_FROM_NAME: TZLDashy
 
     depends_on:
       db:
@@ -97,30 +85,10 @@ services:
       start_period: 45s
 
 # ─────────────────────────────────────────────────────────────
-#  PHPMYADMIN  —  DB admin panel (port 8094)
-# ─────────────────────────────────────────────────────────────
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: tzldashy_phpmyadmin
-    restart: unless-stopped
-    ports:
-      - "8094:80"
-    environment:
-      PMA_HOST:            db
-      PMA_PORT:            "3306"
-      MYSQL_ROOT_PASSWORD: "TZLDashy_ROOT@2025"
-      UPLOAD_LIMIT:        100M
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - tzldashy_net
-
-# ─────────────────────────────────────────────────────────────
 #  TDYL  —  Browser-based terminal (port 2222)
 #  Open http://YOUR-SERVER-IP:2222 for a web terminal.
 #  Default login → username: admin  password: TZLDashy2025
-#  Change the -c flag below to set your own credentials.
+#  Change the --credential flag below to set your own.
 # ─────────────────────────────────────────────────────────────
   tdyl:
     image: tsl0922/ttyd:latest

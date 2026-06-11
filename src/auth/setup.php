@@ -3,11 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config.php';
 
 Auth::startSession();
-
-// If already set up, redirect
-if (!Auth::needsSetup()) {
-    redirect('/auth/login.php');
-}
+if (!Auth::needsSetup()) redirect('/auth/login.php');
 
 $error = '';
 
@@ -38,14 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Setup – TZLDashy</title>
-  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/css/app.css">
+  <script src="https://kit.fontawesome.com/86c0c1c09a.js" crossorigin="anonymous" defer></script>
   <style>
     body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
     .setup-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px;
                   padding: 48px 40px; width: 460px; max-width: 95vw; }
     .setup-logo { text-align: center; margin-bottom: 32px; }
-    .setup-logo .gear { font-size: 56px; }
+    .setup-logo .logo-icon { font-size: 56px; color: var(--accent); }
     .setup-logo h1 { font-size: 28px; margin: 8px 0 4px; color: var(--accent); }
     .setup-logo p { color: var(--muted); font-size: 14px; }
     .badge { display: inline-block; background: var(--accent); color: #111; font-size: 11px;
@@ -56,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
     .form-group input { width: 100%; background: var(--bg); border: 2px solid var(--border);
                         border-radius: 12px; padding: 12px 16px; color: var(--text);
-                        font-size: 15px; outline: none; transition: border-color .2s; }
+                        font-size: 15px; outline: none; transition: border-color .2s; box-sizing: border-box; }
     .form-group input:focus { border-color: var(--accent); }
     .btn-primary { width: 100%; padding: 14px; background: var(--accent); color: #111;
                    border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
@@ -72,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 <div class="setup-card">
   <div class="setup-logo">
-    <div class="gear">⚙️</div>
+    <div class="logo-icon"><i class="fa-solid fa-server"></i></div>
     <h1>TZLDashy</h1>
     <p>Server Dashboard by TechZeeLand</p>
   </div>
@@ -82,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="step-sub">Set up your administrator account to get started. This can only be done once.</div>
 
   <?php if ($error): ?>
-    <div class="error-box">⚠️ <?= e($error) ?></div>
+    <div class="error-box"><i class="fa-solid fa-triangle-exclamation"></i> <?= e($error) ?></div>
   <?php endif; ?>
 
   <form method="POST" autocomplete="off">
@@ -103,11 +100,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <label>Confirm Password</label>
       <input type="password" name="confirm" placeholder="Repeat your password" required>
     </div>
-    <button type="submit" class="btn-primary">Create Admin &amp; Launch TZLDashy →</button>
+    <button type="submit" class="btn-primary">Create Admin &amp; Launch TZLDashy <i class="fa-solid fa-arrow-right"></i></button>
   </form>
 
   <hr class="divider">
-  <div class="footer-note">TZLDashy · rayaz.org · Built by TechZeeLand</div>
+  <div class="footer-note">TZLDashy &middot; rayaz.org &middot; TechZeeLand &middot; AGPL v3</div>
 </div>
 </body>
 </html>

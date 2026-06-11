@@ -5,7 +5,7 @@
 <img src="https://img.shields.io/badge/MariaDB-10.11-003545?style=for-the-badge&logo=mariadb&logoColor=white" alt="MariaDB">
 <img src="https://img.shields.io/badge/Nginx-1.25-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx">
 <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
-<img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT License">
+<img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge" alt="AGPL-3.0 License">
 
 <br><br>
 
@@ -50,7 +50,7 @@ Manage bookmarks, monitor system health, access a browser terminal, manage users
 - **First-run setup** wizard — creates admin account on first launch
 - **Role-based access** — Admin and User roles
 - **Authenticator App 2FA** (TOTP / RFC 6238 — Google Authenticator, Aegis, etc.)
-- **Email OTP 2FA** — 6-digit code sent via Zoho Mail (or any SMTP)
+- 
 - Secure session handling with HTTP-only cookies
 
 ### 👤 User Profile
@@ -82,7 +82,6 @@ Manage bookmarks, monitor system health, access a browser terminal, manage users
 - **Docker Compose** one-command deploy
 - **Nginx 1.25** baked in, serving on **port 1011**
 - **MariaDB 10.11** with health-checked startup
-- **phpMyAdmin** on port 8094
 - Named volumes for all persistent data
 - Production PHP-FPM 8.2 with OPcache
 
@@ -103,7 +102,6 @@ cd tzldashy
 
 # 2. Create your environment file
 cp .env.example .env
-nano .env   # fill in passwords, SMTP, etc.
 
 # 3. Start everything
 docker compose up -d
@@ -130,14 +128,6 @@ All configuration is done via environment variables in your `.env` file.
 | `DB_USER` | `tzldashy` | Database user |
 | `DB_PASS` | _(required)_ | Database password |
 | `MYSQL_ROOT_PASSWORD` | _(required)_ | MariaDB root password |
-| `PMA_PORT` | `8094` | phpMyAdmin host port |
-| `SMTP_HOST` | `smtp.zoho.com` | SMTP server hostname |
-| `SMTP_PORT` | `465` | SMTP port |
-| `SMTP_ENCRYPTION` | `ssl` | `ssl` or `tls` |
-| `SMTP_USER` | _(required)_ | SMTP username / email |
-| `SMTP_PASS` | _(required)_ | SMTP password |
-| `SMTP_FROM` | _(required)_ | From address |
-| `SMTP_FROM_NAME` | `TZLDashy` | From display name |
 
 ### Generate a secure APP_KEY
 
@@ -160,7 +150,6 @@ openssl rand -hex 32
 
 The schema is automatically imported from `database/schema.sql` on first startup.
 
-Access phpMyAdmin at `http://your-server-ip:8094`
 - Server: `db`
 - Username: `root`
 - Password: `MYSQL_ROOT_PASSWORD` from your `.env`
@@ -230,15 +219,15 @@ Add ttyd to your `docker-compose.yml` for a full in-browser SSH experience:
     image: tsl0922/ttyd:latest
     container_name: tzldashy_ttyd
     ports:
-      - "7681:7681"
-    command: ttyd -p 7681 bash
+      - "2222:2222"
+    command: ttyd --port 2222 bash
     restart: unless-stopped
     networks:
       - tzldashy_net
     privileged: true
 ```
 
-Then set **Terminal URL** in TZLDashy → Settings → General to `http://your-ip:7681`.
+Then set **Terminal URL** in TZLDashy → Settings → General to `http://your-ip:2222`.
 
 ---
 
@@ -272,7 +261,7 @@ Use [GitHub Issues](https://github.com/TechZeeLand/tzldashy/issues) with:
 ## 📄 License
 
 ```
-MIT License
+GNU Affero General Public License v3 (AGPL-3.0)
 
 Copyright (c) 2025 rayaz.org / TechZeeLand
 

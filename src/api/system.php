@@ -1,38 +1,69 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../config.php';
+
 Auth::startSession();
 Auth::requireAdmin();
 
+header('Content-Type: application/json');
+
 $action = $_POST['action'] ?? '';
 
-function interimPage(string $title, string $msg, bool $refresh = false): void {
-    $accent = '#00ffbf';
-    echo "<!DOCTYPE html><html><head><title>{$title}</title>
-    <meta charset='UTF-8'>
-    " . ($refresh ? "<meta http-equiv='refresh' content='60;url=/'>" : '') . "
-    <link rel='stylesheet' href='/assets/css/app.css'>
-    <style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:48px;text-align:center;max-width:420px;}
-    h1{color:var(--accent);margin-bottom:12px;} p{color:var(--muted);}
-    .spin{border:4px solid var(--border);border-top-color:{$accent};border-radius:50%;width:36px;height:36px;animation:spin 1s linear infinite;margin:24px auto;}
-    @keyframes spin{to{transform:rotate(360deg);}}</style>
-    </head><body><div class='card'><h1>{$title}</h1><p>{$msg}</p>
-    " . ($refresh ? "<div class='spin'></div>" : '') . "
-    <a href='/' style='display:inline-block;margin-top:20px;padding:12px 24px;background:var(--accent);color:#111;border-radius:12px;font-weight:700;text-decoration:none;'>← Dashboard</a>
-    </div></body></html>";
+if ($action === 'system_reboot') {
+    // Flush output first so browser gets a response
+    if (ob_get_level()) ob_end_clean();
+    header('Location: /?reboot=1');
+    flush();
+    // Give nginx/php-fpm a moment to send the response
+    sleep(1);
+    // Try multiple reboot approaches in sequence
+    @exec('sudo /sbin/reboot 2>&1');
+    @exec('sudo reboot 2>&1');
+    @exec('sudo /bin/systemctl reboot 2>&1');
+    // SYS_BOOT capability alternative: write to sysrq
+    @file_put_contents('/proc/sysrq-trigger', 'b');
+    exit;
 }
 
 if ($action === 'system_shutdown') {
-    shell_exec('sudo /sbin/shutdown -h now 2>/dev/null');
-    interimPage('Shutting Down…', 'The server is powering off.');
+    if (ob_get_level()) ob_end_clean();
+    header('Location: /?shutdown=1');
+    flush();
+    sleep(1);
+    @exec('sudo /sbin/poweroff 2>&1');
+    @exec('sudo /sbin/shutdown -h now 2>&1');
+    @exec('sudo poweroff 2>&1');
+    @exec('sudo /bin/systemctl poweroff 2>&1');
+    @file_put_contents('/proc/sysrq-trigger', 'o');
     exit;
 }
 
-if ($action === 'system_reboot') {
-    shell_exec('sudo /sbin/reboot 2>/dev/null');
-    interimPage('Restarting…', 'The server is rebooting. Page will redirect in 60 seconds.', true);
+if ($action === 'update_sort' && !empty($_POST['ids'])) {
+    $ids = array_map('intval', (array)$_POST['ids']);
+    foreach ($ids as $i => $id) {
+        Database::query("UPDATE apps SET sort_order=? WHERE id=?", [$i, $id]);
+    }
+    echo json_encode(['ok' => true]);
     exit;
 }
 
-redirect('/');
+if ($action === 'update_cat_sort' && !empty($_POST['ids'])) {
+    $ids = array_map('intval', (array)$_POST['ids']);
+    foreach ($ids as $i => $id) {
+        Database::query("UPDATE categories SET sort_order=? WHERE id=?", [$i, $id]);
+    }
+    echo json_encode(['ok' => true]);
+    exit;
+}
+
+if ($action === 'delete_category') {
+    $id = (int)($_POST['id'] ?? 0);
+    // Move orphaned apps out of the category rather than deleting them
+    Database::query("UPDATE apps SET category_id=NULL,location='apps' WHERE category_id=?", [$id]);
+    Database::query("DELETE FROM categories WHERE id=?", [$id]);
+    echo json_encode(['ok' => true]);
+    exit;
+}
+
+http_response_code(400);
+echo json_encode(['error' => 'Unknown action']);
