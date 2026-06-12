@@ -12,14 +12,6 @@ if ($theme['primary'])   $customCss .= "--accent:{$theme['primary']};";
 if ($theme['secondary']) $customCss .= "--secondary:{$theme['secondary']};";
 $customCss .= "--accent-color:{$accentHex};";
 
-function adjustBrightness(string $hex, int $steps): string {
-    $hex = ltrim($hex, '#');
-    if (strlen($hex) === 3) $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
-    $r = max(0, min(255, hexdec(substr($hex,0,2)) + $steps));
-    $g = max(0, min(255, hexdec(substr($hex,2,2)) + $steps));
-    $b = max(0, min(255, hexdec(substr($hex,4,2)) + $steps));
-    return sprintf('#%02x%02x%02x', $r, $g, $b);
-}
 ?>
 <!DOCTYPE html>
 <html lang="en" class="<?= $themeClass ?>">
